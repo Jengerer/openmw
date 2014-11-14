@@ -1402,13 +1402,18 @@ void CharacterController::update(float duration)
             forcestateupdate = (mJumpState != JumpState_InAir);
             mJumpState = JumpState_InAir;
 
-            // This is a guess. All that seems to be known is that "While the player is in the
-            // air, fJumpMoveBase and fJumpMoveMult governs air control". What does fJumpMoveMult do?
+            // Air movement has factor fJumpMoveBase + (acrobatics * fJumpMoveMult) with maximum 1.
             static const float fJumpMoveBase = gmst.find("fJumpMoveBase")->getFloat();
-
-            vec.x *= fJumpMoveBase;
-            vec.y *= fJumpMoveBase;
-            vec.z  = 0.0f;
+            static const float fJumpMoveMult = gmst.find("fJumpMoveMult")->getFloat();
+            float airMoveFactor = 0.f;
+            if (cls.isNpc())
+            {
+                // Factor is scaled by timestep inverse, to move 1 unit each frame.
+                const NpcStats &npcStats = cls.getNpcStats(mPtr);
+                float acrobaticsFactor = npcStats.getSkill(ESM::Skill::Acrobatics).getModified() / 100.f;
+                airMoveFactor = (1.f / duration) * (fJumpMoveBase + (fJumpMoveMult * acrobaticsFactor));
+            }
+            vec = airMoveFactor * Ogre::Vector3(cls.getMovementSettings(mPtr).mPosition);
         }
         else if(vec.z > 0.0f && mJumpState == JumpState_None)
         {
